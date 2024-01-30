@@ -40,7 +40,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define CLI_BUFFER_LENGTH 40
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -48,6 +48,8 @@
 /* USER CODE BEGIN PV */
 static volatile uint8_t uart2_data;
 static h_vu_t h_vu;
+static char cli_buffer[CLI_BUFFER_LENGTH];
+static uint32_t cli_it = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,9 +67,103 @@ int _write(int file, char *ptr, int len)
 	return len;
 }
 
+void cli_vu_meter(char * buffer)
+{
+	int i = 2;
+	int port;
+	int led;
+	int value;
+
+	// Lecture du port
+	if (buffer[i] == '0')
+	{
+		port = 0;
+	}
+	else if (buffer[i] == '1')
+	{
+		port = 1;
+	}
+	else
+	{
+		printf("Error\r\n");
+		return;
+	}
+
+	i += 2;
+
+	// Lecture de la LED
+	char * ptr;
+	ptr = &(buffer[i]);
+
+	while(buffer[i] != ' ')
+	{
+		i++;
+	}
+
+	buffer[i] = '\0';
+
+	led = atoi(ptr);
+
+	i++;
+
+	if (buffer[i] == '0')
+	{
+		value = 0;
+	}
+	else if (buffer[i] == '1')
+	{
+		value = 1;
+	}
+	else
+	{
+		printf("Error\r\n");
+		return;
+	}
+
+	printf("port = %d\r\n", port);
+	printf("led = %d\r\n", led);
+	printf("value = %d\r\n", value);
+
+	vu_led(&h_vu, port, led, value);
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	HAL_UART_Transmit(&huart2, &uart2_data, 1, HAL_MAX_DELAY);
+	// Appui sur entrée = 13
+	if (uart2_data != 13)
+	{
+		if (cli_it < CLI_BUFFER_LENGTH - 1)
+			// - 1 parce qu'on laisse de la place pour le caractère '\0'
+		{
+			HAL_UART_Transmit(&huart2, &uart2_data, 1, HAL_MAX_DELAY);
+			cli_buffer[cli_it] = uart2_data;
+			cli_it++;
+		}
+	}
+	else
+	{
+		cli_buffer[cli_it] = '\0';	// Caractère '\0' obligatoire pour bien terminer la chaine de caractères
+		printf("\r\n:%s\r\n", cli_buffer);
+
+		switch(cli_buffer[0])
+		{
+		case 'v':
+			cli_vu_meter(cli_buffer);
+			break;
+		default:
+			printf("Unknown command\r\n");
+			break;
+		}
+
+		cli_it = 0;	// Pour redémarrer à 0
+		printf("> ");
+		fflush(stdout);
+		for (int i = 0 ; i < CLI_BUFFER_LENGTH ; i++)
+		{
+			// Vider le buffer pour plus de sécurité
+			cli_buffer[i] = 0;
+		}
+	}
 
 	HAL_UART_Receive_IT(&huart2, &uart2_data, 1);
 }
@@ -105,13 +201,13 @@ int main(void)
 	MX_SPI3_Init();
 	/* USER CODE BEGIN 2 */
 	printf("\r\n=============================================================\r\n");
+	printf("> ");
+	fflush(stdout);
 
 	vu_init(&h_vu, &hspi3);
 	vu_blink(&h_vu);
 
 	HAL_UART_Receive_IT(&huart2, &uart2_data, 1);
-
-	vu_led(&h_vu, 0, 0, 1);
 
 	/* USER CODE END 2 */
 
