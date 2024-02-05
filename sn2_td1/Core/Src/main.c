@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -46,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static volatile uint8_t uart2_data;
+static uint8_t uart2_data;
 static h_vu_t h_vu;
 static char cli_buffer[CLI_BUFFER_LENGTH];
 static uint32_t cli_it = 0;
@@ -199,6 +200,7 @@ int main(void)
 	MX_GPIO_Init();
 	MX_USART2_UART_Init();
 	MX_SPI3_Init();
+	MX_ADC1_Init();
 	/* USER CODE BEGIN 2 */
 	printf("\r\n=============================================================\r\n");
 	printf("> ");
@@ -215,6 +217,66 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		HAL_ADC_Start(&hadc1);
+		HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+		uint16_t adc_data = HAL_ADC_GetValue(&hadc1);
+		printf("                 \r");
+		printf("adc data = %d\r", adc_data/512);
+		fflush(stdout);
+
+		// Fournit un nombre entre 0 et 15
+		uint8_t seuil = adc_data/256;
+
+		// Décide quelles LED allumer en fonction
+		for (int i = 0 ; i < 16 ; i++)
+		{
+			uint8_t port = 0;
+			uint8_t led = i;
+			if (i >= 8)
+			{
+				led = i - 8;
+				port = 1;
+			}
+			// pour chaque LED, on décide si elle est allumée ou éteinte
+			// i représente la LED sur laquelle on prend une décision
+			if (i <= seuil)
+			{
+				// Allume la LED
+				vu_led(&h_vu, port, led, 1);
+			}
+			else
+			{
+				// Éteind la LED
+				vu_led(&h_vu, port, led, 0);
+			}
+		}
+
+		HAL_Delay(100);
+
+#ifdef EXO1
+		// Fournit un nombre entre 0 et 7
+		uint8_t led = adc_data/512;
+
+		// Décide quelles LED allumer en fonction
+		for (int i = 0 ; i < 8 ; i++)
+		{
+			// pour chaque LED, on décide si elle est allumée ou éteinte
+			// i représente la LED sur laquelle on prend une décision
+			if (i <= led)
+			{
+				// Allume la LED
+				vu_led(&h_vu, 0, i, 1);
+			}
+			else
+			{
+				// Éteind la LED
+				vu_led(&h_vu, 0, i, 0);
+			}
+		}
+
+		HAL_Delay(100);
+#endif
+
 #ifdef UART_POLLING
 		uint8_t valeur;
 		HAL_UART_Receive(&huart2, &valeur, 1, 1000);
