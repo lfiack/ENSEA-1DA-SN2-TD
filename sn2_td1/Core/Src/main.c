@@ -19,14 +19,19 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "i2c.h"
+#include "sai.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
+#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "vu_meter.h"
+#include "sgtl5000.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +60,7 @@ static uint32_t cli_it = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -192,6 +198,9 @@ int main(void)
 	/* Configure the system clock */
 	SystemClock_Config();
 
+	/* Configure the peripherals common clocks */
+	PeriphCommonClock_Config();
+
 	/* USER CODE BEGIN SysInit */
 
 	/* USER CODE END SysInit */
@@ -201,10 +210,27 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_SPI3_Init();
 	MX_ADC1_Init();
+	MX_TIM2_Init();
+	MX_TIM6_Init();
+	MX_USB_OTG_FS_PCD_Init();
+	MX_I2C2_Init();
+	MX_SAI2_Init();
 	/* USER CODE BEGIN 2 */
 	printf("\r\n=============================================================\r\n");
 	printf("> ");
 	fflush(stdout);
+
+	// Démarre MCLK (horloge principale du CODEC SGTL5000, générée par le STM32)
+	__HAL_SAI_ENABLE(&hsai_BlockA2);
+
+	// Address : 0n01010(R/W)
+	// n = 0 (voir schéma)
+	// R/W = 0, parce que c'est comme ça
+	// Address : 00010100 = 0x14
+
+	sgtl5000_init();
+
+	while(1);	// Juste pour ne pas exécuter la suite
 
 	vu_init(&h_vu, &hspi3);
 	vu_blink(&h_vu);
@@ -320,12 +346,22 @@ void SystemClock_Config(void)
 		Error_Handler();
 	}
 
+	/** Configure LSE Drive Capability
+	 */
+	HAL_PWR_EnableBkUpAccess();
+	__HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
+
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSE
+			|RCC_OSCILLATORTYPE_MSI;
+	RCC_OscInitStruct.LSEState = RCC_LSE_ON;
 	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
 	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+	RCC_OscInitStruct.MSICalibrationValue = 0;
+	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_11;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
 	RCC_OscInitStruct.PLL.PLLM = 1;
@@ -348,6 +384,35 @@ void SystemClock_Config(void)
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
 	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/** Enable MSI Auto calibration
+	 */
+	HAL_RCCEx_EnableMSIPLLMode();
+}
+
+/**
+ * @brief Peripherals Common Clock Configuration
+ * @retval None
+ */
+void PeriphCommonClock_Config(void)
+{
+	RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+
+	/** Initializes the peripherals clock
+	 */
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_SAI2;
+	PeriphClkInit.Sai2ClockSelection = RCC_SAI2CLKSOURCE_PLLSAI1;
+	PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSI;
+	PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
+	PeriphClkInit.PLLSAI1.PLLSAI1N = 13;
+	PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV17;
+	PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
+	PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV6;
+	PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK;
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
 	{
 		Error_Handler();
 	}

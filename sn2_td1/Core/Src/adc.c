@@ -103,14 +103,13 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
   /** Initializes the peripherals clock
   */
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-    PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
-    PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSI;
-    PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-    PeriphClkInit.PLLSAI1.PLLSAI1N = 8;
-    PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
-    PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
-    PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
-    PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_ADC1CLK;
+    PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI2;
+    PeriphClkInit.PLLSAI2.PLLSAI2Source = RCC_PLLSOURCE_HSI;
+    PeriphClkInit.PLLSAI2.PLLSAI2M = 1;
+    PeriphClkInit.PLLSAI2.PLLSAI2N = 8;
+    PeriphClkInit.PLLSAI2.PLLSAI2P = RCC_PLLP_DIV7;
+    PeriphClkInit.PLLSAI2.PLLSAI2R = RCC_PLLR_DIV2;
+    PeriphClkInit.PLLSAI2.PLLSAI2ClockOut = RCC_PLLSAI2_ADC2CLK;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
     {
       Error_Handler();
@@ -128,6 +127,9 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    /* ADC1 interrupt Init */
+    HAL_NVIC_SetPriority(ADC1_2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(ADC1_2_IRQn);
   /* USER CODE BEGIN ADC1_MspInit 1 */
 
   /* USER CODE END ADC1_MspInit 1 */
@@ -150,6 +152,8 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     */
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1);
 
+    /* ADC1 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(ADC1_2_IRQn);
   /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
   /* USER CODE END ADC1_MspDeInit 1 */
