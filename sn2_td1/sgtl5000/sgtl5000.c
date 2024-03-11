@@ -18,6 +18,11 @@ void sgtl5000_init(void)
 	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_ID, &reg);
 	printf("CHIP_ID = 0x%04X\r\n", reg);
 
+	sgtl5000_i2c_clear_bit(SGTL5000_ADDR_CHIP_ANA_POWER, (1 << 12) | (1 << 13));
+	sgtl5000_i2c_set_bit(SGTL5000_ADDR_CHIP_ANA_POWER, (1 << 5) | (1 << 6));
+
+
+	/* On peut supprimer à partir d'ici... */
 	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
 	printf("DIG_POWER = 0x%04X\r\n", reg);
 
@@ -37,6 +42,8 @@ void sgtl5000_init(void)
 
 	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
 	printf("DIG_POWER = 0x%04X\r\n", reg);
+
+	/* ...Jusque là */
 }
 
 int sgtl5000_i2c_read_register(uint16_t reg_address, uint16_t * p_data)
