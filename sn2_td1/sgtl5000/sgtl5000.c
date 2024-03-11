@@ -18,12 +18,24 @@ void sgtl5000_init(void)
 	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_ID, &reg);
 	printf("CHIP_ID = 0x%04X\r\n", reg);
 
-	sgtl5000_i2c_read_register(SGTL5000_ADDR_DIG_POWER, &reg);
+	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
 	printf("DIG_POWER = 0x%04X\r\n", reg);
 
-	sgtl5000_i2c_write_register(SGTL5000_ADDR_DIG_POWER, 1);
+	sgtl5000_i2c_write_register(SGTL5000_ADDR_CHIP_DIG_POWER, 1);
 
-	sgtl5000_i2c_read_register(SGTL5000_ADDR_DIG_POWER, &reg);
+	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
+	printf("DIG_POWER = 0x%04X\r\n", reg);
+
+	// (1<<4) signifie 1 décalé à gauche de 4 bits (= 0x0010)
+	// Bit 4 à 1
+	sgtl5000_i2c_set_bit(SGTL5000_ADDR_CHIP_DIG_POWER, (1<<4));	// Modifie le bit 4 sans modifier les autres
+
+	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
+	printf("DIG_POWER = 0x%04X\r\n", reg);
+
+	sgtl5000_i2c_clear_bit(SGTL5000_ADDR_CHIP_DIG_POWER, (1<<4));	// Mets le bit 4 à 0 sans modifier les autres
+
+	sgtl5000_i2c_read_register(SGTL5000_ADDR_CHIP_DIG_POWER, &reg);
 	printf("DIG_POWER = 0x%04X\r\n", reg);
 }
 
@@ -65,4 +77,41 @@ int sgtl5000_i2c_write_register(uint16_t reg_address, uint16_t data)
 	{
 		return -1;
 	}
+}
+
+int sgtl5000_i2c_set_bit(uint16_t reg_address, uint16_t mask)
+{
+	uint16_t reg;
+	// Lire le registre
+	sgtl5000_i2c_read_register(reg_address, &reg);
+
+	// Modifier les bits selon le masque
+	// Tous les 0 dans le masque ne modifient pas le registre
+	// Tous les 1 dans le masque imposent des 1 dans le registre
+	// Pour faire ça, on utilise un OU logique (symbole | : altgr+6)
+	// Exemple : 0x0001 0010 | 0x0000 0001 = 0x0001 0011
+	reg = reg | mask;
+
+	// Écrire le registre
+	sgtl5000_i2c_write_register(reg_address, reg);
+
+	return 0;
+}
+
+int sgtl5000_i2c_clear_bit(uint16_t reg_address, uint16_t mask)
+{
+	uint16_t reg;
+	// Lire le registre
+	sgtl5000_i2c_read_register(reg_address, &reg);
+
+	// Modifier les bits selon le masque
+	// Tilde inverse tous les bits (les 0 deviennent des 1, les 1 deviennent des 0)
+	// Tilde : altgr+2
+	// ~(0x0001 0000) = 0x1110 1111
+	reg = reg & (~mask);
+
+	// Écrire le registre
+	sgtl5000_i2c_write_register(reg_address, reg);
+
+	return 0;
 }

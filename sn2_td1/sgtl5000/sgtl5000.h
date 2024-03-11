@@ -69,5 +69,7 @@
 void sgtl5000_init(void);
 int sgtl5000_i2c_read_register(uint16_t reg_address, uint16_t * p_data);
 int sgtl5000_i2c_write_register(uint16_t reg_address, uint16_t data);
+int sgtl5000_i2c_set_bit(uint16_t reg_address, uint16_t mask);
+int sgtl5000_i2c_clear_bit(uint16_t reg_address, uint16_t mask);
 
 #endif /* SGTL5000_H_ */
